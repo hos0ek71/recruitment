@@ -58,8 +58,8 @@
         "GitHub Actions가 make check와 같은 검사를 실행한다",
         "AGENTS.md의 '검증 명령' 섹션을 실제 명령으로 갱신"
       ],
-      "passes": false,
-      "evidence": "2026-10-17 코디네이터 재실행: make check 종료 코드 0(ruff, format, mypy strict, pytest 12개, web lint·tsc·vitest 1개). 원격·비 _test DB에 대한 make db-test-reset은 종료 코드 2로 거부됨. 워커 보고(backend/H0-REPORT.md, web/README.md): 의도적 실패 테스트에서 종료 코드 2·1 확인 후 복원. 미완료: GitHub Actions 원격 실행은 push 전이라 확인 못 함. 그래서 passes는 false로 둔다."
+      "passes": true,
+      "evidence": "2026-10-17 코디네이터 재실행: make check 종료 코드 0. 원격·비 _test DB에 대한 make db-test-reset은 종료 코드 2로 거부. 의도적 실패 테스트에서 종료 코드 2·1 확인 후 복원(backend/H0-REPORT.md, web/README.md). GitHub Actions 첫 실행 run 39035622228(stage1-harness, 커밋 8901bc3) success: Run all checks 단계에서 백엔드 189개 통과, mypy 24개 파일."
     },
     {
       "id": "H-1",

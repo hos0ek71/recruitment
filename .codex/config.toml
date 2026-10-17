@@ -1,0 +1,4 @@
+# Orca가 띄우는 Codex 워커의 기본값 (CLAUDE.md "AI 오케스트레이션 규칙").
+# 신뢰된 프로젝트에서만 적용된다. 1차 기준은 worker-start의 --model/--effort 플래그다.
+model = "gpt-6.1-sol"
+model_reasoning_effort = "medium"

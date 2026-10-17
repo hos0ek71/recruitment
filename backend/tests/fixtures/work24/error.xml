@@ -1,0 +1,4 @@
+<?xml version='1.0' encoding='utf-8'?>
+<error>
+  <message>합성 오류: 인증 실패 (실제 응답 형식 미확인)</message>
+</error>

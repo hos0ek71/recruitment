@@ -1,0 +1,37 @@
+{
+  "jobs": {
+    "count": 1,
+    "start": 0,
+    "total": "1",
+    "job": [
+      {
+        "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=99000006",
+        "active": 1,
+        "company": {
+          "detail": {
+            "name": "가상채용기업1"
+          }
+        },
+        "position": {
+          "title": "백엔드 개발자 채용 1",
+          "location": {
+            "code": "101070",
+            "name": "서울 > 구로구"
+          },
+          "job-type": {
+            "code": "1",
+            "name": "정규직"
+          }
+        },
+        "id": "99000006",
+        "posting-timestamp": "1792162800",
+        "modification-timestamp": "1792249200",
+        "opening-timestamp": "1792162800",
+        "close-type": {
+          "code": "1",
+          "name": "접수마감일"
+        }
+      }
+    ]
+  }
+}

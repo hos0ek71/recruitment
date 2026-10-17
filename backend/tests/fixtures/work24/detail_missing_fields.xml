@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<wantedDtl>
+  <wantedAuthNo>K000002610170001</wantedAuthNo>
+  <corpInfo>
+    <corpNm>가상채용기업1</corpNm>
+    <reperNm>홍길동</reperNm>
+    <indTpCdNm>응용 소프트웨어 개발 및 공급업</indTpCdNm>
+    <busiCont>업무용 소프트웨어 개발</busiCont>
+    <homePg>https://example.com</homePg>
+    <busiSize>중소기업</busiSize>
+  </corpInfo>
+  <wantedInfo>
+    <jobsNm>응용 소프트웨어 개발자</jobsNm>
+    <wantedTitle>백엔드 개발자 채용 1</wantedTitle>
+    <receiptCloseDt>2026-10-31</receiptCloseDt>
+    <empTpNm>기간의 정함이 없는 근로계약</empTpNm>
+    <collectPsncnt>2</collectPsncnt>
+    <salTpNm>연봉 3600만원 ~ 4200만원</salTpNm>
+    <enterTpNm>신입</enterTpNm>
+    <eduNm>학력무관</eduNm>
+    <jobsCd>133100</jobsCd>
+    <minEdubgIcd>00</minEdubgIcd>
+    <maxEdubgIcd>00</maxEdubgIcd>
+    <regionCd>11530</regionCd>
+    <empTpCd>10</empTpCd>
+    <enterTpCd>N</enterTpCd>
+    <salTpCd>Y</salTpCd>
+  </wantedInfo>
+</wantedDtl>

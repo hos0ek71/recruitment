@@ -1,0 +1,97 @@
+{
+  "jobs": {
+    "count": 2,
+    "start": 1,
+    "total": "5",
+    "job": [
+      {
+        "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=99000004",
+        "active": 1,
+        "company": {
+          "detail": {
+            "name": "가상채용기업4"
+          }
+        },
+        "position": {
+          "title": "백엔드 개발자 채용 4",
+          "location": {
+            "code": "101070",
+            "name": "서울 > 구로구"
+          },
+          "job-type": {
+            "code": "1",
+            "name": "정규직"
+          },
+          "experience-level": {
+            "code": 3,
+            "min": 0,
+            "max": 3,
+            "name": "신입/경력"
+          },
+          "required-education-level": {
+            "code": "0",
+            "name": "학력무관"
+          }
+        },
+        "keyword": "백엔드,Python,API",
+        "salary": {
+          "code": "0",
+          "name": "회사내규에 따름"
+        },
+        "id": "99000004",
+        "posting-timestamp": "1792162800",
+        "modification-timestamp": "1792249200",
+        "opening-timestamp": "1792162800",
+        "expiration-timestamp": "1793458799",
+        "close-type": {
+          "code": "1",
+          "name": "접수마감일"
+        }
+      },
+      {
+        "url": "https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=99000005",
+        "active": 1,
+        "company": {
+          "detail": {
+            "name": "가상채용기업5"
+          }
+        },
+        "position": {
+          "title": "백엔드 개발자 채용 5",
+          "location": {
+            "code": "101070",
+            "name": "서울 > 구로구"
+          },
+          "job-type": {
+            "code": "1",
+            "name": "정규직"
+          },
+          "experience-level": {
+            "code": 1,
+            "min": 0,
+            "max": 0,
+            "name": "신입"
+          },
+          "required-education-level": {
+            "code": "0",
+            "name": "학력무관"
+          }
+        },
+        "keyword": "백엔드,Python,API",
+        "salary": {
+          "code": "0",
+          "name": "회사내규에 따름"
+        },
+        "id": "99000005",
+        "posting-timestamp": "1792162800",
+        "modification-timestamp": "1792249200",
+        "opening-timestamp": "1792162800",
+        "expiration-timestamp": "1793458799",
+        "close-type": {
+          "code": "1",
+          "name": "접수마감일"
+        }
+      }
+    ]
+  }
+}

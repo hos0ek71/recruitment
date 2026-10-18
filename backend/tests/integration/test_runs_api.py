@@ -39,7 +39,9 @@ async def test_runs_api(factory):
         response = await client.get(f"/runs/{run_id}")
         assert response.status_code == 200
         body = response.json()
-        assert body["status"] == "partial"
+        assert body["status"] == "succeeded"
+        assert body["enabled_sources"] == ["saramin"]
+        assert {q["source"] for q in body["queries"]} == {"saramin"}
         assert {
             "source",
             "keyword",
@@ -71,3 +73,30 @@ async def test_unsupported_region_returns_422_and_releases_lock(factory):
     assert invalid_response.status_code == 422
     assert invalid_response.json()["detail"] == "지원하지 않는 지역 코드: 42"
     assert valid_response.status_code == 202
+
+
+async def test_no_sources_returns_422_without_run_and_releases_lock(factory):
+    from sqlalchemy import func, select
+
+    from app.repositories.models import CollectionRun
+
+    criteria = await seed(factory)
+    controller = CollectionController(factory, {})
+    app = create_app()
+    app.dependency_overrides[get_collection_controller] = lambda: controller
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post("/runs", json={"criteria_id": criteria.id})
+        await controller.wait()
+        async with factory() as session:
+            count = await session.scalar(select(func.count()).select_from(CollectionRun))
+        controller.adapters = {"saramin": FakeAdapter()}
+        try:
+            next_response = await client.post("/runs", json={"criteria_id": criteria.id})
+        finally:
+            await controller.wait()
+    assert response.status_code == 422
+    assert response.json()["detail"] == "사용할 수 있는 소스가 없다(키 설정 필요)"
+    assert count == 0
+    assert next_response.status_code == 202

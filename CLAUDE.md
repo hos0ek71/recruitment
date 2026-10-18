@@ -47,6 +47,7 @@
   4. `--task <id> --retry-of <dispatch_id>`로 다시 시작한다.
 - **실행 중 Codex 업데이트:** 워커가 도는 동안 Codex CLI를 업데이트하면 바이너리가 교체되는 도중이라 워커 셸 도구가 `Malformed Mach-o file`로 실패한다. 업데이트는 워커가 없을 때만 한다. 이미 실패했으면 마지막 턴에 `worker_done`이 없는지 확인한 뒤 `worker-stop` 후 `--retry-of`로 재시작한다.
 - **Orca 앱 종료:** 작업 도중 Orca 앱이 꺼지면 `worker-start`가 `runtime_unavailable` 또는 `terminal_handle_stale`로 실패한다. `orca open --json`으로 다시 켜고 `orca status`가 `ready`인지 확인한다. Run과 Task는 보존된다. 실패한 디스패치는 `worker-release`로 정리한 뒤 `--retry-of`로 다시 시작한다. 이후 명령에는 `--run <run_id>`를 명시한다.
+- **Run 바인딩:** `run-create`를 하면 코디네이터 터미널이 새 Run에 묶인다. 이전 Run에 워커를 더 띄우려면 `orca orchestration run-use --id <run_id>`로 다시 묶는다. 묶이지 않은 Run에 명령하면 `consumer_fenced`로 거부된다(상태 변화 없음).
 - **사용자 개입:** `worker-release`가 `retained / user_takeover`를 돌려주면 사용자가 그 터미널을 쓰는 중이다. 닫지 않는다.
 
 ## 사용자 승인이 필요한 일

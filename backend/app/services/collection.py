@@ -27,7 +27,6 @@ from app.repositories import criteria as criteria_repository
 from app.repositories.models import Criteria
 
 SessionFactory = async_sessionmaker[AsyncSession]
-SOURCES: tuple[SourceName, ...] = ("saramin", "work24")
 DEFAULT_BUDGETS: Mapping[SourceName, int] = {"saramin": 400, "work24": 1000}
 KST = ZoneInfo("Asia/Seoul")
 
@@ -54,9 +53,8 @@ async def plan_queries(
 ) -> list[PlannedQuery]:
     planned: list[PlannedQuery] = []
     seen: set[tuple[str, str, str | None]] = set()
-    for source in SOURCES:
-        adapter = adapters.get(source)
-        page_size = adapter.max_page_size if adapter else (110 if source == "saramin" else 100)
+    for source, adapter in adapters.items():
+        page_size = adapter.max_page_size
         mapping = saramin_region if source == "saramin" else work24_region
         regions: list[str | None] = list(criteria.regions) if criteria.regions else [None]
         for keyword in criteria.keywords:
@@ -122,12 +120,14 @@ async def _prepare(
     try:
         if not await collection.try_execution_lock(lock_session):
             raise RunAlreadyActive("수집이 이미 실행 중입니다")
+        if not adapters:
+            raise InvalidCriteria("사용할 수 있는 소스가 없다(키 설정 필요)")
         async with factory() as session:
             criteria = await criteria_repository.get_approved_criteria(session, criteria_id)
             if criteria is None:
                 raise CriteriaNotApproved("존재하는 승인된 조건이 필요합니다")
             queries = await plan_queries(criteria, adapters, session)
-            run = await collection.create_run(session, criteria.id, trigger)
+            run = await collection.create_run(session, criteria.id, trigger, list(adapters))
             query_ids = []
             for planned in queries:
                 row = await collection.create_query(
@@ -165,14 +165,12 @@ async def _execute(
     try:
         async with factory() as session:
             for planned, query_id in zip(prepared.queries, prepared.query_ids, strict=True):
-                adapter = adapters.get(planned.source)
+                adapter = adapters[planned.source]
                 status, error = "pending", None
                 pages, total = 0, None
                 received: set[str] = set()
                 pages_without_progress = 0
-                if adapter is None:
-                    status, error = "error", "API 키 없음"
-                elif planned.source in deferred:
+                if planned.source in deferred:
                     status = "deferred"
                 else:
                     page = adapter.first_page
@@ -321,6 +319,7 @@ async def get_run(factory: SessionFactory, run_id: int) -> dict[str, Any] | None
             "started_at": run.started_at,
             "finished_at": run.finished_at,
             "api_calls_used": run.api_calls_used,
+            "enabled_sources": run.enabled_sources,
             "queries": [
                 {
                     name: getattr(row, name)

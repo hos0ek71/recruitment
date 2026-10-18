@@ -79,6 +79,9 @@ class CollectionRun(Base):
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     criteria_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("criteria.id"))
     trigger: Mapped[str] = mapped_column(Text)
+    enabled_sources: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), default=list, server_default=text("'{}'::text[]")
+    )
     status: Mapped[str] = mapped_column(Text, server_default=text("'running'"))
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

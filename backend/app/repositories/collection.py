@@ -9,8 +9,12 @@ from app.domain.raw import RawItem
 from app.repositories.models import CollectionQuery, CollectionRun, QueryHit, RawPosting
 
 
-async def create_run(session: AsyncSession, criteria_id: int, trigger: str) -> CollectionRun:
-    run = CollectionRun(criteria_id=criteria_id, trigger=trigger)
+async def create_run(
+    session: AsyncSession, criteria_id: int, trigger: str, enabled_sources: Sequence[str] = ()
+) -> CollectionRun:
+    run = CollectionRun(
+        criteria_id=criteria_id, trigger=trigger, enabled_sources=list(enabled_sources)
+    )
     session.add(run)
     await session.flush()
     return run

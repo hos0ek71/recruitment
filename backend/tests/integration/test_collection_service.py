@@ -125,7 +125,9 @@ async def test_pages(factory, responses, status, pages, count):
     run, queries = await result(factory, await execute(factory, adapter, criteria))
     query = queries[0]
     assert (query.status, query.pages_fetched, query.items_received) == (status, pages, count)
-    assert run.status == "partial"  # work24 without a key remains visible
+    assert run.status == "succeeded"
+    assert run.enabled_sources == ["saramin"]
+    assert len(queries) == 1
     assert run.api_calls_used == pages
     assert all(call[2] == 2 for call in adapter.calls)
     if query.total_reported is not None:
@@ -166,6 +168,7 @@ async def test_retry_and_continue(factory, errors, status, calls):
     saramin = [q for q in queries if q.source == "saramin"]
     assert saramin[0].status == status
     assert saramin[1].status == "completed"
+    assert run.status == ("succeeded" if status == "completed" else "partial")
     assert run.api_calls_used == calls + (1 if status == "completed" else 0)
     async with factory() as session:
         assert (
@@ -202,14 +205,27 @@ async def test_completed_watermark_and_plan(factory):
     assert query.since.tzinfo is not None
 
 
-async def test_missing_keys_and_failed_status(factory):
-    criteria = await seed(factory)
-    run_id = await run_collection(factory, {}, criteria.id, "manual")
-    run, queries = await result(factory, run_id)
-    assert run.status == "failed"
+async def test_only_enabled_sources_are_planned_and_recorded(factory):
+    criteria = await seed(factory, ("python", "java"))
+    adapter = FakeAdapter()
+    async with factory() as session:
+        planned = await plan_queries(criteria, {"saramin": adapter}, session)
+    assert [query.source for query in planned] == ["saramin", "saramin"]
+    run, queries = await result(factory, await execute(factory, adapter, criteria))
+    assert run.status == "succeeded"
+    assert run.enabled_sources == ["saramin"]
     assert len(queries) == 2
-    assert all(q.status == "error" and q.error == "API 키 없음" for q in queries)
-    assert run.finished_at is not None
+    assert all(q.source == "saramin" and q.status == "completed" for q in queries)
+
+
+async def test_real_errors_still_fail_run(factory):
+    criteria = await seed(factory)
+    run, queries = await result(
+        factory, await execute(factory, FakeAdapter([PermanentSourceError("bad")]), criteria)
+    )
+    assert run.status == "failed"
+    assert queries[0].status == "error"
+    assert queries[0].error == "bad"
 
 
 async def test_lock_and_release(factory):
@@ -317,7 +333,7 @@ async def test_cancellation_keeps_full_plan_and_releases_lock(factory):
         async with factory() as session:
             run = await session.scalar(select(CollectionRun))
         _, queries = await result(factory, run.id)
-        assert len(queries) == 4  # every planned query is observable while running
+        assert len(queries) == 2  # every enabled query is observable while running
     finally:
         task.cancel()
         with pytest.raises(asyncio.CancelledError):

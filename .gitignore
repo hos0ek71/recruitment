@@ -1,0 +1,21 @@
+# 비밀값
+.env
+.env.*
+!.env.example
+
+# 개인 Claude Code 설정
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+
+.DS_Store

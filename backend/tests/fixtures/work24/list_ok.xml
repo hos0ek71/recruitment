@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='utf-8'?>
+<wantedRoot>
+  <total>5</total>
+  <startPage>1</startPage>
+  <display>3</display>
+  <wanted>
+    <wantedAuthNo>K000002610170001</wantedAuthNo>
+    <company>가상채용기업1</company>
+    <busino>0000000000</busino>
+    <indTpNm>응용 소프트웨어 개발 및 공급업</indTpNm>
+    <title>백엔드 개발자 채용 1</title>
+    <salTpNm>연봉</salTpNm>
+    <sal>3600만원 ~ 4200만원</sal>
+    <minSal>36000000</minSal>
+    <maxSal>42000000</maxSal>
+    <region>서울 구로구</region>
+    <holidayTpNm>주 5일 근무</holidayTpNm>
+    <minEdubg>학력무관</minEdubg>
+    <maxEdubg>학력무관</maxEdubg>
+    <career>신입</career>
+    <regDt>26-10-17</regDt>
+    <closeDt>26-10-31</closeDt>
+    <infoSvc>VALIDATION</infoSvc>
+    <wantedInfoUrl>https://www.work24.go.kr/wk/a/b/1500/empDetailAuthView.do?wantedAuthNo=K000002610170001</wantedInfoUrl>
+    <empTpCd>10</empTpCd>
+    <jobsCd>133100</jobsCd>
+    <smodifyDtm>20261017090000</smodifyDtm>
+  </wanted>
+  <wanted>
+    <wantedAuthNo>K000002610170002</wantedAuthNo>
+    <company>가상채용기업2</company>
+    <busino>0000000000</busino>
+    <indTpNm>응용 소프트웨어 개발 및 공급업</indTpNm>
+    <title>백엔드 개발자 채용 2</title>
+    <salTpNm>연봉</salTpNm>
+    <sal>3600만원 ~ 4200만원</sal>
+    <minSal>36000000</minSal>
+    <maxSal>42000000</maxSal>
+    <region>서울 구로구</region>
+    <holidayTpNm>주 5일 근무</holidayTpNm>
+    <minEdubg>학력무관</minEdubg>
+    <maxEdubg>학력무관</maxEdubg>
+    <career>경력</career>
+    <regDt>26-10-17</regDt>
+    <closeDt>26-10-31</closeDt>
+    <infoSvc>VALIDATION</infoSvc>
+    <wantedInfoUrl>https://www.work24.go.kr/wk/a/b/1500/empDetailAuthView.do?wantedAuthNo=K000002610170002</wantedInfoUrl>
+    <empTpCd>10</empTpCd>
+    <jobsCd>133100</jobsCd>
+    <smodifyDtm>20261017090000</smodifyDtm>
+  </wanted>
+  <wanted>
+    <wantedAuthNo>K000002610170003</wantedAuthNo>
+    <company>가상채용기업3</company>
+    <busino>0000000000</busino>
+    <indTpNm>응용 소프트웨어 개발 및 공급업</indTpNm>
+    <title>백엔드 개발자 채용 3</title>
+    <salTpNm>연봉</salTpNm>
+    <sal>3600만원 ~ 4200만원</sal>
+    <minSal>36000000</minSal>
+    <maxSal>42000000</maxSal>
+    <region>서울 구로구</region>
+    <holidayTpNm>주 5일 근무</holidayTpNm>
+    <minEdubg>학력무관</minEdubg>
+    <maxEdubg>학력무관</maxEdubg>
+    <career>관계없음</career>
+    <regDt>26-10-17</regDt>
+    <closeDt>26-10-31</closeDt>
+    <infoSvc>VALIDATION</infoSvc>
+    <wantedInfoUrl>https://www.work24.go.kr/wk/a/b/1500/empDetailAuthView.do?wantedAuthNo=K000002610170003</wantedInfoUrl>
+    <empTpCd>10</empTpCd>
+    <jobsCd>133100</jobsCd>
+    <smodifyDtm>20261017090000</smodifyDtm>
+  </wanted>
+</wantedRoot>

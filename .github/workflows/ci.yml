@@ -1,0 +1,26 @@
+name: Checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.14'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.34.5'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked backend dependencies
+        run: cd backend && uv sync --locked
+      - name: Start PostgreSQL
+        run: make db-up
+      - name: Run all checks
+        run: make check

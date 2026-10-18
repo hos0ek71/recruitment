@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='utf-8'?>
+<wantedRoot>
+  <total>1</total>
+  <startPage>1</startPage>
+  <display>3</display>
+  <wanted>
+    <wantedAuthNo>K000002610170006</wantedAuthNo>
+    <company>가상채용기업1</company>
+    <busino>0000000000</busino>
+    <indTpNm>응용 소프트웨어 개발 및 공급업</indTpNm>
+    <title>백엔드 개발자 채용 1</title>
+    <salTpNm>연봉</salTpNm>
+    <region>서울 구로구</region>
+    <holidayTpNm>주 5일 근무</holidayTpNm>
+    <regDt>26-10-17</regDt>
+    <infoSvc>VALIDATION</infoSvc>
+    <wantedInfoUrl>https://www.work24.go.kr/wk/a/b/1500/empDetailAuthView.do?wantedAuthNo=K000002610170006</wantedInfoUrl>
+    <empTpCd>10</empTpCd>
+    <jobsCd>133100</jobsCd>
+    <smodifyDtm>20261017090000</smodifyDtm>
+  </wanted>
+</wantedRoot>

@@ -32,6 +32,7 @@ pytestmark = pytest.mark.db
 
 
 class FakeAdapter:
+    supports_updated = False
     source = "saramin"
     first_page = 0
     max_page_size = 2
@@ -397,3 +398,122 @@ async def test_new_ids_reset_consecutive_pages_without_progress(factory):
     assert run.api_calls_used == len(adapter.calls) == 5
     async with factory() as session:
         assert await watermark.get_watermark(session, "saramin", "python", "*") == run.started_at
+
+
+async def test_updated_plan_order_fallback_and_own_watermark(factory):
+    from app.adapters.saramin import SaraminAdapter
+    from app.adapters.work24 import Work24Adapter
+    from app.services.collection import get_run
+
+    criteria = await seed(factory, ("python", "java"))
+    saramin, work24 = FakeAdapter(), FakeAdapter()
+    saramin.supports_updated = SaraminAdapter.supports_updated
+    work24.source = "work24"
+    work24.supports_updated = Work24Adapter.supports_updated
+    adapters = {"saramin": saramin, "work24": work24}
+    stamp = datetime(2026, 10, 17, tzinfo=UTC)
+    later = stamp + timedelta(hours=2)
+    async with factory() as session:
+        initial = await plan_queries(criteria, adapters, session)
+        assert [p.mode for p in initial] == ["published"] * 4
+        for source in adapters:
+            for keyword in criteria.keywords:
+                await watermark.set_watermark(session, source, keyword, "*", stamp)
+        await watermark.set_watermark(session, "saramin", "python", "*", later, mode="updated")
+        await session.commit()
+        planned = await plan_queries(criteria, adapters, session)
+        assert [p.mode for p in planned] == ["published"] * 4 + ["updated"] * 2
+        assert [p.source for p in planned[-2:]] == ["saramin", "saramin"]
+        assert planned[-2].since == later - timedelta(days=1)
+        assert planned[-1].since == stamp - timedelta(days=1)
+    run_id = await run_collection(
+        factory, adapters, criteria.id, "manual", budgets={"saramin": 2, "work24": 2}
+    )
+    run, queries = await result(factory, run_id)
+    assert [q.status for q in queries] == ["completed"] * 4 + ["deferred"] * 2
+    assert [q.mode for q in queries] == ["published"] * 4 + ["updated"] * 2
+    assert run.status == "partial"
+    response = await get_run(factory, run_id)
+    assert [q["mode"] for q in response["queries"]] == ["published"] * 4 + ["updated"] * 2
+    async with factory() as session:
+        assert (
+            await watermark.get_watermark(session, "saramin", "python", "*", mode="updated")
+            == later
+        )
+        assert await watermark.get_watermark(session, "saramin", "python", "*") == run.started_at
+
+
+async def test_updated_completes_own_watermark(factory):
+    criteria = await seed(factory)
+    adapter = FakeAdapter()
+    adapter.supports_updated = True
+    async with factory() as session:
+        await watermark.set_watermark(
+            session, "saramin", "python", "*", datetime(2026, 10, 17, tzinfo=UTC)
+        )
+        await session.commit()
+    run, queries = await result(factory, await execute(factory, adapter, criteria))
+    assert [q.mode for q in queries] == ["published", "updated"]
+    async with factory() as session:
+        assert (
+            await watermark.get_watermark(session, "saramin", "python", "*", mode="updated")
+            == run.started_at
+        )
+
+
+async def test_deferred_updates_keep_initial_baseline_across_days(factory, monkeypatch):
+    criteria = await seed(factory)
+    adapter = FakeAdapter()
+    adapter.supports_updated = True
+    baseline = datetime(2026, 10, 17, tzinfo=UTC)
+    clock = baseline
+    original_create = collection.create_run
+
+    async def dated_run(*args, **kwargs):
+        run = await original_create(*args, **kwargs)
+        run.started_at = clock
+        await args[0].flush()
+        return run
+
+    monkeypatch.setattr(collection, "create_run", dated_run)
+    await execute(factory, adapter, criteria, budgets={"saramin": 1})
+    async with factory() as session:
+        assert (
+            await watermark.get_watermark(session, "saramin", "python", "*", mode="updated")
+            == baseline
+        )
+    for day in (1, 2, 3):
+        clock = baseline + timedelta(days=day)
+        run, queries = await result(
+            factory, await execute(factory, adapter, criteria, budgets={"saramin": day + 1})
+        )
+        assert [q.status for q in queries] == ["completed", "deferred"]
+        async with factory() as session:
+            assert await watermark.get_watermark(session, "saramin", "python", "*") == clock
+            assert (
+                await watermark.get_watermark(session, "saramin", "python", "*", mode="updated")
+                == baseline
+            )
+            planned = await plan_queries(criteria, {"saramin": adapter}, session)
+            assert planned[-1].since == baseline - timedelta(days=1)
+
+
+async def test_legacy_watermark_is_frozen_on_first_plan(factory):
+    criteria = await seed(factory)
+    adapter = FakeAdapter()
+    adapter.supports_updated = True
+    baseline = datetime(2026, 10, 17, tzinfo=UTC)
+    async with factory() as session:
+        await watermark.set_watermark(session, "saramin", "python", "*", baseline)
+        await plan_queries(criteria, {"saramin": adapter}, session)
+        await session.commit()
+    async with factory() as session:
+        assert (
+            await watermark.get_watermark(session, "saramin", "python", "*", mode="updated")
+            == baseline
+        )
+        await watermark.set_watermark(
+            session, "saramin", "python", "*", baseline + timedelta(days=3)
+        )
+        planned = await plan_queries(criteria, {"saramin": adapter}, session)
+        assert planned[-1].since == baseline - timedelta(days=1)

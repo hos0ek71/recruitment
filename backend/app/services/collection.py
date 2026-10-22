@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from math import ceil
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -69,29 +69,47 @@ async def plan_queries(
                 seen.add(key)
                 stored_region = region or "*"
                 stamp = await watermark.get_watermark(session, source, keyword, stored_region)
-                # TIMESTAMPTZ should always be aware; normalize defensively for callers.
-                since = (
-                    (
+                modes: list[tuple[Literal["published", "updated"], datetime | None]] = [
+                    ("published", stamp)
+                ]
+                if adapter.supports_updated and stamp is not None:
+                    updated = await watermark.get_watermark(
+                        session, source, keyword, stored_region, mode="updated"
+                    )
+                    # Freeze legacy databases' edit baseline before published can advance.
+                    # Persisted with the prepared run; deferred edit passes must retain it.
+                    if updated is None:
+                        await watermark.set_watermark(
+                            session, source, keyword, stored_region, stamp, mode="updated"
+                        )
+                        updated = stamp
+                    modes.append(("updated", updated))
+                for mode, mode_stamp in modes:
+                    since = (
                         (
-                            stamp.replace(tzinfo=UTC)
-                            if stamp.tzinfo is None
-                            else stamp.astimezone(UTC)
+                            mode_stamp.replace(tzinfo=UTC)
+                            if mode_stamp.tzinfo is None
+                            else mode_stamp.astimezone(UTC)
                         )
                         - timedelta(days=1)
+                        if mode_stamp is not None
+                        else None
                     )
-                    if stamp
-                    else None
-                )
-                total = await collection.previous_total(session, source, keyword, stored_region)
-                planned.append(
-                    PlannedQuery(
-                        source=source,
-                        keyword=keyword,
-                        region=region,
-                        since=since,
-                        estimated_calls=(ceil(total / page_size) if total is not None else 1),
+                    total = await collection.previous_total(
+                        session, source, keyword, stored_region, mode=mode
                     )
-                )
+                    planned.append(
+                        PlannedQuery(
+                            source=source,
+                            keyword=keyword,
+                            region=region,
+                            since=since,
+                            mode=mode,
+                            estimated_calls=(ceil(total / page_size) if total is not None else 1),
+                        )
+                    )
+    # Stable ordering preserves the existing published order across all sources.
+    planned.sort(key=lambda query: query.mode == "updated")
     return planned
 
 
@@ -137,6 +155,7 @@ async def _prepare(
                     planned.keyword,
                     planned.region or "*",
                     planned.since,
+                    mode=planned.mode,
                 )
                 query_ids.append(row.id)
             await session.commit()
@@ -201,9 +220,10 @@ async def _execute(
                                     response = await adapter.fetch_page(
                                         planned, page, adapter.max_page_size
                                     )
-                            ids = await collection.upsert_raw_postings(
+                            upsert = await collection.upsert_raw_postings(
                                 session, planned.source, response.items, prepared.run_id
                             )
+                            ids = upsert.ids
                             await collection.add_query_hits(session, query_id, list(ids.values()))
                             if response.items and not (ids.keys() - received):
                                 pages_without_progress += 1
@@ -250,7 +270,30 @@ async def _execute(
                         planned.keyword,
                         planned.region or "*",
                         prepared.started_at,
+                        mode=planned.mode,
                     )
+                    # A full pass also covers edits; initialize once, never advance
+                    # this baseline on later published-only/deferred edit runs.
+                    if (
+                        planned.mode == "published"
+                        and adapter.supports_updated
+                        and await watermark.get_watermark(
+                            session,
+                            planned.source,
+                            planned.keyword,
+                            planned.region or "*",
+                            mode="updated",
+                        )
+                        is None
+                    ):
+                        await watermark.set_watermark(
+                            session,
+                            planned.source,
+                            planned.keyword,
+                            planned.region or "*",
+                            prepared.started_at,
+                            mode="updated",
+                        )
                 await session.commit()
                 statuses.append(status)
             status = (
@@ -325,6 +368,7 @@ async def get_run(factory: SessionFactory, run_id: int) -> dict[str, Any] | None
                     name: getattr(row, name)
                     for name in (
                         "source",
+                        "mode",
                         "keyword",
                         "region",
                         "status",

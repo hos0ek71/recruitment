@@ -92,6 +92,7 @@ class CollectionQuery(Base):
     __tablename__ = "collection_query"
     __table_args__ = (
         CheckConstraint("source IN ('saramin', 'work24')", name="ck_query_source"),
+        CheckConstraint("mode IN ('published', 'updated')", name="ck_query_mode"),
         CheckConstraint(
             "status IN ('pending', 'completed', 'partial', 'deferred', 'error')",
             name="ck_query_status",
@@ -102,6 +103,7 @@ class CollectionQuery(Base):
     source: Mapped[str] = mapped_column(Text)
     keyword: Mapped[str] = mapped_column(Text)
     region: Mapped[str] = mapped_column(Text)
+    mode: Mapped[str] = mapped_column(Text, server_default=text("'published'"))
     published_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(Text, server_default=text("'pending'"))
     pages_fetched: Mapped[int] = mapped_column(server_default=text("'0'"))
@@ -123,7 +125,24 @@ class RawPosting(Base):
     payload: Mapped[dict[str, Any]] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb")
     )
+    content_hash: Mapped[str] = mapped_column(Text)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    run_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("collection_run.id"))
+
+
+class RawPostingVersion(Base):
+    __tablename__ = "raw_posting_version"
+    __table_args__ = (
+        UniqueConstraint("raw_posting_id", "version"),
+        CheckConstraint("version >= 1", name="ck_raw_version_positive"),
+    )
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    raw_posting_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("raw_posting.id"))
+    version: Mapped[int] = mapped_column()
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    content_hash: Mapped[str] = mapped_column(Text)
+    source_modified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     run_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("collection_run.id"))
 
 
@@ -141,10 +160,12 @@ class QueryWatermark(Base):
     __tablename__ = "query_watermark"
     __table_args__ = (
         CheckConstraint("source IN ('saramin', 'work24')", name="ck_watermark_source"),
+        CheckConstraint("mode IN ('published', 'updated')", name="ck_watermark_mode"),
     )
     source: Mapped[str] = mapped_column(Text, primary_key=True)
     keyword: Mapped[str] = mapped_column(Text, primary_key=True)
     region: Mapped[str] = mapped_column(Text, primary_key=True)
+    mode: Mapped[str] = mapped_column(Text, primary_key=True, server_default=text("'published'"))
     last_completed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

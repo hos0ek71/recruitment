@@ -1,7 +1,8 @@
 """사람인 JSON 목록 어댑터. 재시도와 호출 예산은 수집 엔진이 관리한다.
 
 명세: https://oapi.saramin.co.kr/guide/job-search
-sort=pa는 게시일 오름차순, published_min은 Unix timestamp를 사용한다.
+sort=pa는 게시일 오름차순, sort=ua는 수정일 정순(공식 요청 변수표).
+published_min/updated_min은 Unix timestamp를 사용한다.
 start × count 상한은 공개 명세에서 확인되지 않아 max_page는 None이다.
 """
 
@@ -23,6 +24,7 @@ from app.adapters.saramin_codes import to_loc_mcd
 
 class SaraminAdapter:
     source: SourceName = "saramin"
+    supports_updated = True
     first_page = 0
     max_page_size = 110
     max_page: int | None = None
@@ -44,12 +46,14 @@ class SaraminAdapter:
             "sr": "directhire",
             "start": str(page),
             "count": str(page_size),
-            "sort": "pa",
+            "sort": "ua" if query.mode == "updated" else "pa",
         }
         if query.region is not None:
             params["loc_mcd"] = to_loc_mcd(query.region)
         if query.since is not None:
-            params["published_min"] = str(int(query.since.timestamp()))
+            params["updated_min" if query.mode == "updated" else "published_min"] = str(
+                int(query.since.timestamp())
+            )
         try:
             response = await self._client.get(
                 self._url, params=params, headers={"Accept": "application/json"}

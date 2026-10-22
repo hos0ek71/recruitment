@@ -30,6 +30,11 @@
       "stage": 4,
       "name": "선택",
       "goal": "추가 탐색, MCP 등 선택 기능"
+    },
+    {
+      "stage": 5,
+      "name": "지원 준비",
+      "goal": "추천 공고의 회사를 출처 있는 사실로 정리하고, 실제 경험만으로 자기소개서를 맞춤 수정한다 (게이트 5). MVP(G-3) 이후"
     }
   ],
   "features": [
@@ -123,8 +128,8 @@
         "응답 code=4(일일 한도 초과)면 남은 쿼리를 미루고 실행을 partial로 표시",
         "헤드헌팅·파견 제외 파라미터 sr=directhire를 요청에 넣는다"
       ],
-      "passes": false,
-      "evidence": "2026-10-17 어댑터 부분 완료: SaraminAdapter(sr=directhire, sort=pa, published_min Unix timestamp, code=4 → QuotaExceeded), saramin_codes(code-table2). make check 종료 코드 0. 남은 것: 일일 호출 원장·예산 미루기·partial 표시는 C-4 수집 엔진에서 검증. | C-4 후 갱신: 일일 호출 원장(KST)·예산 초과 사전 deferred·code=4 deferred·run partial은 수집 엔진 테스트로 확인. 미완료: 수정 감지용 updated_min은 구현하지 않았다(published_min만 사용). 그래서 passes는 false."
+      "passes": true,
+      "evidence": "2026-10-17 어댑터 부분 완료: SaraminAdapter(sr=directhire, sort=pa, published_min Unix timestamp, code=4 → QuotaExceeded), saramin_codes(code-table2). make check 종료 코드 0. 남은 것: 일일 호출 원장·예산 미루기·partial 표시는 C-4 수집 엔진에서 검증. | C-4 후 갱신: 일일 호출 원장(KST)·예산 초과 사전 deferred·code=4 deferred·run partial은 수집 엔진 테스트로 확인. 미완료: 수정 감지용 updated_min은 구현하지 않았다(published_min만 사용). 그래서 passes는 false. | 2026-10-22 완료: updated_min(sort=ua, 사람인 공식 명세 코디네이터 재확인) 수정 재수집, 모드별 워터마크(기준점 전진 방지 규칙 포함), published 먼저·updated 나중 실행, raw_posting_version 원본 버전 보관과 내용 해시(read-cnt·apply-cnt 제외), payload_changes 비교 함수, 마이그레이션 c3b491fe8820. 코디네이터 재실행 make check 종료 코드 0(백엔드 220개). 보고서 docs/harness/reports/C-3-updated-min.md. 실제 API에서 updated_min 동작은 G-1에서 확인."
     },
     {
       "id": "C-4",
@@ -204,7 +209,8 @@
       "title": "소스별 매퍼와 코드표",
       "acceptance": [
         "사람인과 고용24 픽스처를 공통 스키마로 변환하는 테스트. 지역, 학력, 경력, 고용형태 코드표 매핑",
-        "필드가 없으면 null로 남기고 추측하지 않는다"
+        "필드가 없으면 null로 남기고 추측하지 않는다",
+        "모집 단위가 여러 개인 공고는 모집 단위 목록(직무, 경력, 학력, 고용형태, 지역)으로 함께 정규화한다. 소스가 단위 정보를 주지 않으면 공고 하나를 단위 하나로 두고 통합 공고 여부를 표시한다 (docs/mvp-design-review.md 0-1절)"
       ],
       "passes": false,
       "evidence": null
@@ -228,7 +234,10 @@
       "acceptance": [
         "EXPIRED, CAREER_REQUIRED, EDU_TOO_HIGH, EMPLOYMENT_TYPE, REGION_OUT, SHIFT_WORK, EXCLUDED_COMPANY 각각 탈락, 통과, 정보 없음(확인 필요) 케이스 테스트",
         "SMALL_COMPANY, SIZE_UNKNOWN 태그는 탈락이 아니라 분류로 저장",
-        "조건 버전별로 filter_result를 만들고, 이전 버전 결과는 보존"
+        "조건 버전별로 filter_result를 만들고, 이전 버전 결과는 보존",
+        "모집 단위가 여러 개인 공고는 단위별로 통과·탈락(사유)·확인 필요를 남기고, 하나라도 통과하거나 정보 없음이면 공고를 통과시킨다 (0-1절)",
+        "단위 정보가 없는 통합 공고는 '통합 공고, 세부 자격 확인 필요'로 통과시킨다",
+        "회귀 테스트: 제목에 직무명이 없고 일부 단위만 석사 이상을 요구하는 통합 공고(아이센스 사례)가 탈락하지 않는다"
       ],
       "passes": false,
       "evidence": null
@@ -346,6 +355,111 @@
         "도구 collect, get_stats. 요청당 도구 호출 최대 10회, 남은 일일 호출 수 확인, source·region은 승인된 값만",
         "AI가 시도한 키워드는 '탐색 키워드'로 저장하고 사용자 승인 전에는 매일 수집에 넣지 않는다",
         "도구 호출 기록이 실행 기록 화면에 남는다"
+      ],
+      "passes": false,
+      "evidence": null
+    },
+    {
+      "id": "K-0",
+      "stage": 5,
+      "title": "결정·정책",
+      "acceptance": [
+        "AI 용도에 자소서 맞춤 수정 추가, MVP 이후, 외부 LLM 전송 동의·개인정보 마스킹 필수, 회사 빈칸은 AI 회사 조사로 자동화(조건 5개) — 모두 2026-10-22 사용자 승인",
+        "금융위원회 기업기본정보·DART OpenAPI 키 발급 결과를 progress.md에 기록 (사용자 신청 중)",
+        "미정: 예산은 G-5 측정 후 확정, 그때까지 실행당 $0.20 안전 상한",
+        "근거: docs/plans/2026-10-22-company-analysis-cover-letter.md, docs/mvp-design-review.md 0-3절"
+      ],
+      "passes": false,
+      "evidence": null
+    },
+    {
+      "id": "K-1",
+      "stage": 5,
+      "title": "경험 은행",
+      "acceptance": [
+        "자소서 → STAR 경험 추출, JSON 스키마 검증, 원문 구간 연결",
+        "사용자 확인 전에는 작성에 쓰지 않는다. 원문에 없는 결과·수치를 채우지 않고 null과 질문으로 남긴다"
+      ],
+      "passes": false,
+      "evidence": null
+    },
+    {
+      "id": "K-2",
+      "stage": 5,
+      "title": "회사 분석 카드와 AI 회사 조사",
+      "acceptance": [
+        "법인명·사업자번호로 회사 식별(동명 회사 구분). 공식 홈페이지는 기업기본정보·DART에서 가져온다",
+        "사용자 요청 시에만 회사 하나씩 AI 조사: Claude API web_search·web_fetch, allowed_domains = 회사 공식 도메인 + DART, 채용 포털 도메인은 테스트로 차단 확인",
+        "모든 사실은 원자 단위로 인용 문장·URL·확인일을 가진다. 인용 없는 사실은 버린다(테스트). 페이지 전체는 저장하지 않는다",
+        "출처: 공고 원문, 금융위 기업기본정보, DART 사업보고서·수시공시, AI 회사 조사. 자료에 없는 칸은 null",
+        "사용자는 사실마다 맞음/틀림만 확인한다. 확인 전 사실은 자소서 작성에 쓰지 않는다",
+        "회사 분석 단계에는 사용자 자소서를 보내지 않는다"
+      ],
+      "passes": false,
+      "evidence": null
+    },
+    {
+      "id": "K-3",
+      "stage": 5,
+      "title": "문항과 글자 수 규칙",
+      "acceptance": [
+        "문항 원문·글자 수 제한·공백 포함 여부·회사 AI 사용 규정(허용/금지/모름) 입력",
+        "서버가 최종 텍스트로 글자 수를 계산한다"
+      ],
+      "passes": false,
+      "evidence": null
+    },
+    {
+      "id": "K-4",
+      "stage": 5,
+      "title": "맞춤 초안 생성",
+      "acceptance": [
+        "경험 매칭 → 문항별 작성. 출력은 문장·원자 주장·근거 ID·변경 이유 JSON",
+        "서버가 근거 ID를 허용 집합과 대조한다. 실패한 JSON은 고쳐 쓰지 않고 버린다"
+      ],
+      "passes": false,
+      "evidence": null
+    },
+    {
+      "id": "K-5",
+      "stage": 5,
+      "title": "검사",
+      "acceptance": [
+        "결정적 검사: 글자 수, 다른 회사명 잔존, 원문에 없는 수치·고유명사, 역할 확대 표현",
+        "LLM 의미 검사: supported/unsupported/contradicted/needs_check. 결과 표시는 '미지원 주장 미검출(진실 보증 아님)'까지만"
+      ],
+      "passes": false,
+      "evidence": null
+    },
+    {
+      "id": "K-6",
+      "stage": 5,
+      "title": "문장별 검토 화면",
+      "acceptance": [
+        "원문/수정안 나란히, 문장별 수락·거절·수정·보류, 수락 때마다 전체 재검사",
+        "미지원·모순 문장이 남으면 검토 완료본으로 전환하지 않는다. 자동 제출 없음"
+      ],
+      "passes": false,
+      "evidence": null
+    },
+    {
+      "id": "K-7",
+      "stage": 5,
+      "title": "개인정보",
+      "acceptance": [
+        "외부 LLM 전송 전 이름·연락처·주소·주민번호·타인 정보를 무조건 마스킹(테스트로 강제)",
+        "실제 전송 텍스트 미리보기와 동의 기록, 로그에 원문·프롬프트 금지, 삭제 시 연쇄 삭제"
+      ],
+      "passes": false,
+      "evidence": null
+    },
+    {
+      "id": "G-5",
+      "stage": 5,
+      "title": "게이트 5: 지원 준비",
+      "acceptance": [
+        "회귀 예시(허위 수치, 역할 확대, 다른 회사명, 글자 수 초과, 근거 없음, 개인정보 미마스킹) 전부 통과",
+        "실제 회사 1~3곳으로 비용·품질을 측정하고 사용자가 승인"
       ],
       "passes": false,
       "evidence": null

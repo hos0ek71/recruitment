@@ -36,3 +36,8 @@
 - 목록·상세 연결은 `wantedAuthNo=K000002610170001`이다. 누락 목록은 별도 ID를 사용한다. 사람인·고용24의 URL은 원문 사이트 도메인으로 구성했으며 실재 공고 존재를 보장하지 않는다. 어떤 링크도 열어 수집하지 않았다.
 - 연락처 원문은 복사하지 않았다. 가상 인명은 홍길동, 연락처는 02-0000-0000, 이메일을 추가할 때는 recruit@example.com을 사용한다. 인증키 필드·값은 포함하지 않는다.
 - `test_fixture_hygiene.py`는 전체 트리를 읽어 JSON/XML 파싱과 키·이메일·전화번호 위생을 검사한다. XML은 defusedxml로 파싱하며 엔티티 선언을 거부한다. `tmp_path` 위반 자료는 테스트 실행 중 생성하고 커밋하지 않는다.
+
+## 2026-10-22 · C-3 추가
+
+- `saramin/list_counts.json`: S1 공식 JSON 예시와 선택 필드표에서 `read-cnt`(조회수), `apply-cnt`(지원자수)를 재확인하고 기존 합성 `list_ok.json` 첫 공고에 합성 카운트 15·2를 추가했다. 실제 API는 호출하지 않았다.
+- S1 요청 변수표: `sort=ua`는 수정일 정순, `updated_min`은 수정일시 검색 최소값(datetime 또는 Unix timestamp).

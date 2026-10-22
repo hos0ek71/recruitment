@@ -40,6 +40,7 @@ class SourceQuery:
     since: datetime | None = None
     # 소스별 추가 파라미터(어댑터가 해석한다).
     extra: Mapping[str, str] = field(default_factory=dict)
+    mode: Literal["published", "updated"] = "published"
 
 
 @dataclass(frozen=True)
@@ -73,6 +74,7 @@ class PermanentSourceError(SourceError):
 
 
 class SourceAdapter(Protocol):
+    supports_updated: bool
     source: SourceName
     # 첫 페이지 번호(사람인 0, 고용24 1).
     first_page: int

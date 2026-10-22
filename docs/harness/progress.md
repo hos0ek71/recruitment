@@ -6,6 +6,55 @@
 
 ---
 
+## 2026-10-22 (2) · C-3 완료
+
+**한 일**
+- Run `run_47434bb74ea0`, 워커 1명(`codex / gpt-6.1-sol / medium`). 사람인 수정 공고 재수집(updated_min, sort=ua)과 원본 버전 보관(사용자 결정: 덮어쓰기 대신 버전).
+- 워커 질문 2건 처리: upsert 반환은 명시적 `UpsertResult`, updated 워터마크가 여러 날 deferred 때 전진하지 않도록 초기화 규칙(A안).
+- 결정: 같은 화면 회사 조사 자동화 승인(mvp-design-review 0-3), 기업기본정보·DART 키 사용자 신청.
+
+**검증 증거**
+- 코디네이터 재실행 `make check` 종료 코드 0: 백엔드 220개, mypy 24개 파일, 웹 1개. sort 값과 read-cnt·apply-cnt를 사람인 공식 명세에서 직접 확인.
+
+**남은 위험**
+- upsert가 공고마다 쿼리 3번(삽입 시도, 잠금 조회, 버전 번호)이라 페이지당 최대 330쿼리. 1인용 규모에선 문제없지만 느려지면 배치로 바꾼다.
+- 실제 API의 updated_min 반응 범위는 G-1에서 확인.
+
+## 2026-10-22 · 계획: 회사 분석과 자기소개서 맞춤 수정
+
+**한 일**
+- Run `run_79b1bad9846a`, 워커 2명(`codex / gpt-6.1-sol / medium` 확인). 회사 정보 출처 조사 `docs/research/10`, 자소서 수정 설계 조사 `docs/research/11`, 종합 계획 `docs/plans/2026-10-22-company-analysis-cover-letter.md`.
+- 결론: 단계 5(K-0~K-7, G-5)로 MVP 이후 권장. 자동 회사 정보는 금융위원회 기업기본정보 + DART(공시 회사), 빈칸은 사용자 사실 메모. 뉴스 API는 약관상 AI 입력 불가로 제외.
+
+**다음 할 일**
+- 사용자 결정 6개(계획 문서 8절). 승인 전에는 features.json에 넣지 않는다.
+
+## 2026-10-20 · 잡코리아 데이터 아이디어 회의
+
+**한 일**
+- Run `run_36789a239f5e`, 워커 3명. 사용자가 이 회의에 한해 Claude Sonnet 5.5 high를 지정했다. 정책 훅이 막고, 훅에 일회 예외를 넣는 수정은 Claude Code 자동 권한 검사(Self-Modification)가 막아 훅은 원상 복구했다. 사용자가 `! bash scratchpad/start-jk-meeting.sh`로 직접 시작했고 영수증 `launch.effective`는 3명 모두 `claude / claude-sonnet-5-5 / high`.
+- 산출물 `docs/ideation/2026-10-20-jobkorea-data/00~04`. 결론: 잡코리아 허락 경로 0개(Open API 약관 제5조가 개인·프로젝트·개인 사용·DB 수집 거절, 코디네이터 원문 확인). 다음 수는 사람인 키 발급 후 커버리지 실험.
+
+**배운 점**
+- 사용자가 지정한 워커 모델이 정책 훅과 다르면 처음부터 한 줄로 알리고 바로 쓸 수 있는 방법(사용자 직접 실행)을 줄 것. 긴 설명은 사용자를 혼란스럽게 했다.
+
+## 2026-10-19 · 결정: 모집 단위가 여러 개인 공고
+
+**한 일**
+- 사용자가 GPT로 공고를 고를 때 통합 공고(아이센스)가 판정 없이 빠진 사례를 분석했다. 원인은 건별 판정 장부가 없는 것과 공고 한 건을 판정 한 번으로만 다루는 것.
+- 사용자 승인으로 `docs/mvp-design-review.md` 0-1절에 규칙 4개를 확정하고 features.json N-1, F-1 수용 기준에 넣었다. 코드 변경 없음.
+
+**다음 할 일**
+- 변동 없음: 사용자 키 신청 4건, 키를 기다리는 동안 C-3 updated_min 보완 가능.
+
+**추가 (같은 날)**
+- 완성 화면 시연 영상: `docs/demo/gongchae-demo.mp4`(90초, 예시 데이터), Artifact https://claude.ai/artifact/3KywqjZ5vx82cc4zgH1mXE
+- dazzajo-portfolio 수집 방식 조사(Run `run_a783b832155a`, 워커 2명, 둘 다 `codex / gpt-6.1-sol / medium` 확인): `docs/research/05`, `06`, 종합 `07`. 비크롤링 부분은 네이버 공식 API뿐이고 제조사·다나와는 HTML 수집. 새 후보는 인크루트 공식 RSS(조건 문의 필요).
+- 워커들의 `make check`는 Docker 데몬이 꺼져 있어 종료 코드 2. 문서만 바뀐 작업이라 영향 없음.
+- 규칙 추가: 프롬프트마다 오케스트레이션 판단(CLAUDE.md, AGENTS.md 9번).
+- 잡코리아 검색 체크리스트 검증(mvp-design-review 0-2): 파서 스파이크 `research/spikes/jobkorea-paste/`(unittest 16개, 코디네이터 재실행 통과), 보고서 `docs/research/08`. 1페이지 샘플에서 전체 109건·본 목록 40건·광고 3건·파견 1건 분리, 1페이지만 주면 "69건 부족, 2·3페이지 미입력". 공고 ID가 없어 건수 일치는 잠정 판정. 사용자 결정: 채택하지 않음(손작업 대비 가치 낮음).
+- 부천대 조사 `docs/research/09`: JOB4U 공채달력은 잡코리아 공식 iframe(코디네이터가 HTML 직접 확인), 일반·추천채용 공개 목록 있음, RSS·메일 구독과 API 계약은 확인 못 함. 판정 "부분". 학교 문의 초안 포함. 사용자 결정: 문의하지 않음.
+
 ## 2026-10-18 · 아이디어 회의, 결정 반영, C-0
 
 **한 일**

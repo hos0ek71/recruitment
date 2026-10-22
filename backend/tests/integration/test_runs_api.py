@@ -39,11 +39,13 @@ async def test_runs_api(factory):
         response = await client.get(f"/runs/{run_id}")
         assert response.status_code == 200
         body = response.json()
+        assert body["queries"][0]["mode"] == "published"
         assert body["status"] == "succeeded"
         assert body["enabled_sources"] == ["saramin"]
         assert {q["source"] for q in body["queries"]} == {"saramin"}
         assert {
             "source",
+            "mode",
             "keyword",
             "region",
             "status",
@@ -52,6 +54,11 @@ async def test_runs_api(factory):
             "items_received",
             "error",
         } <= body["queries"][0].keys()
+        adapter.supports_updated = True
+        second = await client.post("/runs", json={"criteria_id": criteria.id})
+        await controller.wait()
+        response = await client.get(f"/runs/{second.json()['run_id']}")
+        assert [q["mode"] for q in response.json()["queries"]] == ["published", "updated"]
         assert (await client.get("/runs/999999")).status_code == 404
         assert (await client.post("/runs", json={"criteria_id": 999999})).status_code == 422
 

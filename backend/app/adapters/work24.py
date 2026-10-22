@@ -69,6 +69,7 @@ def _required_text(root: Element, name: str) -> str:
 
 
 class Work24Adapter:
+    supports_updated = False
     source: SourceName = "work24"
     first_page = 1
     max_page_size = 100

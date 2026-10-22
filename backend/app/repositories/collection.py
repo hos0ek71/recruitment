@@ -1,12 +1,22 @@
+import hashlib
+import json
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy import func, update
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.raw import RawItem
-from app.repositories.models import CollectionQuery, CollectionRun, QueryHit, RawPosting
+from app.repositories.models import (
+    CollectionQuery,
+    CollectionRun,
+    QueryHit,
+    RawPosting,
+    RawPostingVersion,
+)
 
 
 async def create_run(
@@ -39,6 +49,7 @@ async def create_query(
     keyword: str,
     region: str,
     published_since: datetime | None = None,
+    mode: str = "published",
 ) -> CollectionQuery:
     query = CollectionQuery(
         run_id=run_id,
@@ -46,6 +57,7 @@ async def create_query(
         keyword=keyword,
         region=region,
         published_since=published_since,
+        mode=mode,
     )
     session.add(query)
     await session.flush()
@@ -77,39 +89,126 @@ async def update_query(
     return (await session.execute(statement)).scalar_one()
 
 
+# Official Saramin response elements (https://oapi.saramin.co.kr/guide/job-search):
+# fields=count adds read-cnt (views), apply-cnt (applicants); these are activity,
+# not edits to recruitment content. Fixtures: saramin/list_counts.json.
+# No volatile Work24 fields have been verified, so nothing is ignored there.
+HASH_IGNORED_FIELDS: dict[str, frozenset[str]] = {
+    "saramin": frozenset({"read-cnt", "apply-cnt"}),
+    "work24": frozenset(),
+}
+
+
+def content_hash(source: str, payload: dict[str, Any]) -> str:
+    content = {k: v for k, v in payload.items() if k not in HASH_IGNORED_FIELDS.get(source, ())}
+    canonical = json.dumps(content, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def source_modified_at(source: str, payload: dict[str, Any]) -> datetime | None:
+    value = payload.get("modification-timestamp") if source == "saramin" else None
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return datetime.fromtimestamp(int(value), UTC)
+    except ValueError, TypeError, OverflowError, OSError:
+        return None
+
+
+def payload_changes(before: dict[str, Any], after: dict[str, Any]) -> list[tuple[str, Any, Any]]:
+    """Deterministic JSON Pointer paths; additions/removals use None for absent values.
+
+    Lists are compared as complete values; dictionaries are compared recursively.
+    The function reports raw differences, including volatile fields, without mutation.
+    """
+    changes: list[tuple[str, Any, Any]] = []
+
+    def compare(old: Any, new: Any, path: str) -> None:
+        if isinstance(old, dict) and isinstance(new, dict):
+            for key in sorted(old.keys() | new.keys()):
+                child = path + "/" + key.replace("~", "~0").replace("/", "~1")
+                if key not in old or key not in new:
+                    changes.append((child, old.get(key), new.get(key)))
+                else:
+                    compare(old[key], new[key], child)
+        elif type(old) is not type(new) or old != new:
+            changes.append((path, old, new))
+
+    compare(before, after, "")
+    return changes
+
+
+@dataclass(frozen=True)
+class UpsertResult:
+    ids: dict[str, int]
+    changed_ids: frozenset[int]
+
+
 async def upsert_raw_postings(
     session: AsyncSession,
     source: str,
     items: Sequence[RawItem],
     run_id: int,
-) -> dict[str, int]:
-    # Repeated IDs within a page must also be safe for PostgreSQL's bulk upsert.
+) -> UpsertResult:
+    # Last occurrence wins within a page, as in the previous bulk upsert.
+    # Stable lock order avoids deadlocks when pages share several existing IDs.
     unique = {item.source_posting_id: item for item in items}
-    if not unique:
-        return {}
+    ids: dict[str, int] = {}
+    changed: set[int] = set()
     now = datetime.now(UTC)
-    statement = insert(RawPosting).values(
-        [
-            {
-                "source": source,
-                "source_posting_id": item.source_posting_id,
-                "payload": item.payload,
-                "run_id": run_id,
-                "fetched_at": now,
-            }
-            for item in unique.values()
-        ]
-    )
-    returning = statement.on_conflict_do_update(
-        index_elements=[RawPosting.source, RawPosting.source_posting_id],
-        set_={
-            "payload": statement.excluded.payload,
-            "fetched_at": statement.excluded.fetched_at,
-            "run_id": statement.excluded.run_id,
-        },
-    ).returning(RawPosting.source_posting_id, RawPosting.id)
-    rows = (await session.execute(returning)).all()
-    return {row.source_posting_id: row.id for row in rows}
+    for posting_id, item in sorted(unique.items()):
+        digest = content_hash(source, item.payload)
+        inserted = await session.scalar(
+            insert(RawPosting)
+            .values(
+                source=source,
+                source_posting_id=posting_id,
+                payload=item.payload,
+                content_hash=digest,
+                run_id=run_id,
+                fetched_at=now,
+            )
+            .on_conflict_do_nothing(
+                index_elements=[RawPosting.source, RawPosting.source_posting_id]
+            )
+            .returning(RawPosting.id)
+        )
+        # Serialize version allocation for existing rows; the insert locks new rows.
+        raw = (
+            await session.scalars(
+                select(RawPosting)
+                .where(RawPosting.source == source, RawPosting.source_posting_id == posting_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).one()
+        ids[posting_id] = raw.id
+        if inserted is not None or raw.content_hash != digest:
+            version = (
+                await session.scalar(
+                    select(func.max(RawPostingVersion.version)).where(
+                        RawPostingVersion.raw_posting_id == raw.id
+                    )
+                )
+            ) or 0
+            session.add(
+                RawPostingVersion(
+                    raw_posting_id=raw.id,
+                    version=version + 1,
+                    payload=item.payload,
+                    content_hash=digest,
+                    source_modified_at=source_modified_at(source, item.payload),
+                    fetched_at=now,
+                    run_id=run_id,
+                )
+            )
+            raw.payload = item.payload
+            raw.content_hash = digest
+            changed.add(raw.id)
+        raw.fetched_at = now
+        raw.run_id = run_id
+        await session.flush()
+    return UpsertResult(ids, frozenset(changed))
 
 
 async def add_query_hits(
@@ -154,7 +253,7 @@ async def release_execution_lock(session: AsyncSession) -> None:
 
 
 async def previous_total(
-    session: AsyncSession, source: str, keyword: str, region: str
+    session: AsyncSession, source: str, keyword: str, region: str, mode: str = "published"
 ) -> int | None:
     from sqlalchemy import select
 
@@ -164,6 +263,7 @@ async def previous_total(
             CollectionQuery.source == source,
             CollectionQuery.keyword == keyword,
             CollectionQuery.region == region,
+            CollectionQuery.mode == mode,
         )
         .order_by(CollectionQuery.id.desc())
         .limit(1)

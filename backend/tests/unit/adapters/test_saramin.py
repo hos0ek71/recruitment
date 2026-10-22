@@ -40,6 +40,7 @@ def test_contract() -> None:
     ("filename", "page", "total", "count"),
     [
         ("list_ok.json", 0, 5, 3),
+        ("list_counts.json", 0, 1, 1),
         ("list_page2.json", 1, 5, 2),
         ("list_empty.json", 0, 0, 0),
         ("list_missing_fields.json", 0, 1, 1),
@@ -213,3 +214,23 @@ def test_all_region_codes(region: str, expected: str) -> None:
 def test_unknown_region(region: str) -> None:
     with pytest.raises(ValueError):
         to_loc_mcd(region)
+
+
+async def test_updated_parameters():
+    from app.adapters.work24 import Work24Adapter
+
+    since = datetime(2026, 10, 17, tzinfo=UTC)
+    query = SourceQuery(
+        source="saramin", keyword="python", region=None, since=since, mode="updated"
+    )
+    with respx.mock(assert_all_mocked=True) as mock:
+        route = mock.get(URL).respond(text=fixture_text("list_empty.json"))
+        async with httpx.AsyncClient() as client:
+            adapter = SaraminAdapter(client, "dummy-key")
+            assert adapter.supports_updated
+            assert not Work24Adapter.supports_updated
+            await adapter.fetch_page(query, 0, 110)
+        params = route.calls.last.request.url.params
+        assert params["updated_min"] == str(int(since.timestamp()))
+        assert "published_min" not in params
+        assert params["sort"] == "ua"
